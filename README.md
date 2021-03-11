@@ -1,4 +1,5 @@
 # The obstacle_detector package 
+Forked from https://github.com/tysik/obstacle_detector
 
 The `obstacle_detector` package provides utilities to detect and track obstacles from data provided by 2D laser scanners. Detected obstacles come in a form of line segments or circles. The package was designed for a robot equipped with two laser scanners therefore it contains several additional utilities. The working principles of the method are described in an article provided in the `resources` folder.
 
