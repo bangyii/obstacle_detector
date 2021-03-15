@@ -40,6 +40,7 @@
 #include <ros/ros.h>
 #include <armadillo>
 #include <std_srvs/Empty.h>
+#include <nav_msgs/Odometry.h>
 #include <obstacle_detector/Obstacles.h>
 
 #include "obstacle_detector/utilities/tracked_obstacle.h"
@@ -57,6 +58,7 @@ private:
   bool updateParams(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
   void timerCallback(const ros::TimerEvent&);
   void obstaclesCallback(const obstacle_detector::Obstacles::ConstPtr new_obstacles);
+  void odomCallback(const nav_msgs::Odometry::ConstPtr &msg);
 
   void initialize() { std_srvs::Empty empt; updateParams(empt.request, empt.response); }
 
@@ -82,12 +84,14 @@ private:
   ros::NodeHandle nh_local_;
 
   ros::Subscriber obstacles_sub_;
+  ros::Subscriber odom_sub_;
   ros::Publisher obstacles_pub_;
   ros::ServiceServer params_srv_;
   ros::Timer timer_;
 
   double radius_margin_;
   obstacle_detector::Obstacles obstacles_;
+  nav_msgs::Odometry odom_;
 
   std::vector<TrackedObstacle> tracked_obstacles_;
   std::vector<CircleObstacle> untracked_obstacles_;
@@ -95,6 +99,7 @@ private:
   // Parameters
   bool p_active_;
   bool p_copy_segments_;
+  bool p_compensate_robot_velocity_;
 
   double p_tracking_duration_;
   double p_loop_rate_;
