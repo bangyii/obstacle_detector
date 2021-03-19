@@ -84,7 +84,6 @@ private:
   ros::NodeHandle nh_local_;
 
   ros::Subscriber obstacles_sub_;
-  ros::Subscriber odom_sub_;
   ros::Publisher obstacles_pub_;
   ros::ServiceServer params_srv_;
   ros::Timer timer_;
@@ -99,7 +98,6 @@ private:
   // Parameters
   bool p_active_;
   bool p_copy_segments_;
-  bool p_compensate_robot_velocity_;
 
   double p_tracking_duration_;
   double p_loop_rate_;

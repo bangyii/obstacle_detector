@@ -68,11 +68,10 @@ bool ObstacleTracker::updateParams(std_srvs::Empty::Request &req, std_srvs::Empt
 
   nh_local_.param<bool>("active", p_active_, true);
   nh_local_.param<bool>("copy_segments", p_copy_segments_, true);
-  nh_local_.param<bool>("compensate_robot_velocity", p_compensate_robot_velocity_, true);
-
+  nh_local_.param<double>("sensor_rate", p_sensor_rate_, 10.0);
   nh_local_.param<double>("loop_rate", p_loop_rate_, 100.0);
+
   p_sampling_time_ = 1.0 / p_loop_rate_;
-  p_sensor_rate_ = 10.0;    // 10 Hz for Hokuyo
 
   nh_local_.param<double>("tracking_duration", p_tracking_duration_, 2.0);
   nh_local_.param<double>("min_correspondence_cost", p_min_correspondence_cost_, 0.3);
@@ -92,9 +91,6 @@ bool ObstacleTracker::updateParams(std_srvs::Empty::Request &req, std_srvs::Empt
 
   if (p_active_ != prev_active) {
     if (p_active_) {
-      if(p_compensate_robot_velocity_)
-        odom_sub_ = nh_.subscribe("/odom", 1, &ObstacleTracker::odomCallback, this);
-
       obstacles_sub_ = nh_.subscribe("raw_obstacles", 10, &ObstacleTracker::obstaclesCallback, this);
       obstacles_pub_ = nh_.advertise<obstacle_detector::Obstacles>("tracked_obstacles", 10);
       timer_.start();
@@ -476,20 +472,9 @@ void ObstacleTracker::publishObstacles() {
 
   obstacles_.circles.clear();
 
-
   for (auto& tracked_obstacle : tracked_obstacles_) {
     CircleObstacle ob = tracked_obstacle.getObstacle();
     ob.true_radius = ob.radius - radius_margin_;
-
-    //Compensate robot velocity from obstacle velocity
-    //Velocities are in robot's frame, x forward y leftwards
-    if(p_compensate_robot_velocity_)
-    {
-      double distance = sqrt(pow(ob.center.x, 2) + pow(ob.center.y, 2));
-      double angle = asin(ob.center.y/ob.center.x);
-      ob.velocity.y += odom_.twist.twist.angular.z * distance * cos(angle);
-      ob.velocity.x += odom_.twist.twist.linear.x - odom_.twist.twist.angular.z * distance * sin(angle);
-    }
 
     obstacles_.circles.push_back(ob);
   }
