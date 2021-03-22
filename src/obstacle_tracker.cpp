@@ -476,6 +476,17 @@ void ObstacleTracker::publishObstacles() {
     CircleObstacle ob = tracked_obstacle.getObstacle();
     ob.true_radius = ob.radius - radius_margin_;
 
+    auto cov = tracked_obstacle.getStateCovariance();
+    for(int i = 0; i < cov.size(); ++i)
+    {
+      int cov_row = i * 2;
+      for(int j = 0; j < cov[i].size(); ++j)
+      {
+        for(int k = 0; k < cov[i][j].size(); ++k)
+          ob.covariance[(cov_row + j) * 6 + cov_row + k] = cov[i][j][k];
+      }
+    }
+
     obstacles_.circles.push_back(ob);
   }
 

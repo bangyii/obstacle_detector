@@ -37,6 +37,7 @@
 
 #include <obstacle_detector/Obstacles.h>
 #include "obstacle_detector/utilities/kalman.h"
+#include <vector>
 
 namespace obstacle_detector
 {
@@ -102,6 +103,39 @@ public:
     obstacle_.radius = kf_r_.q_est(0);
 
     fade_counter_--;
+  }
+  
+  std::vector<std::vector<std::vector<double>>> getStateCovariance(){
+    std::vector<std::vector<std::vector<double>>> ret_val;
+
+    //Get x position and velocity covariance
+    std::vector<std::vector<double>> x_cov(kf_x_.P.n_rows, std::vector<double>(kf_x_.P.n_cols));
+    for(int i = 0; i < kf_x_.P.n_rows; ++i)
+    {
+      for(int j = 0; j < kf_x_.P.n_cols; ++j)
+        x_cov[i][j] = kf_x_.P.at(i, j);
+    }
+    ret_val.push_back(std::move(x_cov));
+
+    //Get y position and velocity covariance
+    std::vector<std::vector<double>> y_cov(kf_y_.P.n_rows, std::vector<double>(kf_y_.P.n_cols));
+    for(int i = 0; i < kf_y_.P.n_rows; ++i)
+    {
+      for(int j = 0; j < kf_y_.P.n_cols; ++j)
+        y_cov[i][j] = kf_y_.P.at(i, j);
+    }
+    ret_val.push_back(std::move(y_cov));
+
+    //Get r position and velocity covariance
+    std::vector<std::vector<double>> r_cov(kf_r_.P.n_rows, std::vector<double>(kf_r_.P.n_cols));
+    for(int i = 0; i < kf_r_.P.n_rows; ++i)
+    {
+      for(int j = 0; j < kf_r_.P.n_cols; ++j)
+        r_cov[i][j] = kf_r_.P.at(i, j);
+    }
+    ret_val.push_back(std::move(r_cov));
+
+    return ret_val;
   }
 
   static void setSamplingTime(double tp) {
