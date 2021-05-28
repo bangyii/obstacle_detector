@@ -101,6 +101,7 @@ bool ObstacleExtractor::updateParams(std_srvs::Empty::Request &req, std_srvs::Em
   nh_local_.param<double>("max_x_limit", p_max_x_limit_,  10.0);
   nh_local_.param<double>("min_y_limit", p_min_y_limit_, -10.0);
   nh_local_.param<double>("max_y_limit", p_max_y_limit_,  10.0);
+  nh_local_.param<double>("p_search_radius_", p_search_radius_,  0.2);
 
   nh_local_.param<string>("frame_id", p_frame_id_, "map");
 
@@ -110,6 +111,8 @@ bool ObstacleExtractor::updateParams(std_srvs::Empty::Request &req, std_srvs::Em
         scan_sub_ = nh_.subscribe("scan", 10, &ObstacleExtractor::scanCallback, this);
       else if (p_use_pcl_)
         pcl_sub_ = nh_.subscribe("pcl", 10, &ObstacleExtractor::pclCallback, this);
+
+      map_sub_ = nh_.subscribe("/map", 1, &ObstacleExtractor::mapCallback, this);
 
       obstacles_pub_ = nh_.advertise<obstacle_detector::Obstacles>("raw_obstacles", 10);
     }
@@ -127,6 +130,10 @@ bool ObstacleExtractor::updateParams(std_srvs::Empty::Request &req, std_srvs::Em
   }
 
   return true;
+}
+
+void ObstacleExtractor::mapCallback(const nav_msgs::OccupancyGrid::ConstPtr map_msg) {
+  map = *map_msg;
 }
 
 void ObstacleExtractor::scanCallback(const sensor_msgs::LaserScan::ConstPtr scan_msg) {
@@ -324,6 +331,25 @@ bool ObstacleExtractor::checkSegmentsCollinearity(const Segment& segment, const 
 }
 
 void ObstacleExtractor::detectCircles() {
+  //Get transform from base_link to map frame
+  tf::StampedTransform transform;
+  int pixel_search_radius;
+
+  if(map.header.frame_id == "")
+    ROS_INFO_ONCE("Map not received, will not revert circular obstacles that lie in static obstacles into line obstacles");
+
+  else
+  {
+    try {
+      tf_listener_.waitForTransform(map.header.frame_id, base_frame_id_, stamp_, ros::Duration(0.1));
+      tf_listener_.lookupTransform(map.header.frame_id, base_frame_id_, stamp_, transform);
+      pixel_search_radius = round(p_search_radius_ / map.info.resolution / 2);
+    }
+    catch (tf::TransformException& ex) {
+      ROS_INFO_STREAM("Failed to get transform to filter circular obstacles " << ex.what());
+    }
+  }
+
   for (auto segment = segments_.begin(); segment != segments_.end(); ++segment) {
     if (p_circles_from_visibles_) {
       bool segment_is_visible = true;
@@ -341,6 +367,36 @@ void ObstacleExtractor::detectCircles() {
     circle.radius += p_radius_enlargement_;
 
     if (circle.radius < p_max_circle_radius_) {
+      //If resultant circle's center is inside of obstacle in map, then remove it. These circles are in lidar frame
+      bool circle_in_static = false;
+      if(transform.child_frame_id_ != "")
+      {
+        auto new_point = transformPoint(circle.center, transform);
+
+        //World to map pixel coordinates transform
+        int map_x = (new_point.x - map.info.origin.position.x) / map.info.resolution;
+        int map_y = (new_point.y - map.info.origin.position.y) / map.info.resolution;
+
+        //Search few pixels around origin
+        for(int i = -pixel_search_radius; i <= pixel_search_radius && !circle_in_static; ++i)
+        {
+          for(int j = -pixel_search_radius; j <= pixel_search_radius && !circle_in_static; ++j)
+          {
+            int temp_x = map_x + i;
+            int temp_y = map_y + j;
+
+            int index = temp_y * map.info.width + temp_x;
+
+            //Center of circle is in obstacle, continue
+            if(index >= 0 && index < map.data.size() && map.data[index] == 100)
+              circle_in_static = true;
+          }
+        }
+      }
+
+      if(circle_in_static)
+        continue;
+
       circles_.push_back(circle);
 
       if (p_discard_converted_segments_) {

@@ -38,6 +38,7 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
 #include <std_srvs/Empty.h>
+#include <nav_msgs/OccupancyGrid.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud.h>
 #include <obstacle_detector/Obstacles.h>
@@ -60,6 +61,7 @@ private:
   bool updateParams(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
   void scanCallback(const sensor_msgs::LaserScan::ConstPtr scan_msg);
   void pclCallback(const sensor_msgs::PointCloud::ConstPtr pcl_msg);
+  void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr map_msg);
 
   void initialize() { std_srvs::Empty empt; updateParams(empt.request, empt.response); }
 
@@ -82,6 +84,7 @@ private:
 
   ros::Subscriber scan_sub_;
   ros::Subscriber pcl_sub_;
+  ros::Subscriber map_sub_;
   ros::Publisher obstacles_pub_;
   ros::ServiceServer params_srv_;
 
@@ -117,8 +120,11 @@ private:
   double p_max_x_limit_;
   double p_min_y_limit_;
   double p_max_y_limit_;
+  double p_search_radius_;
 
   std::string p_frame_id_;
+
+  nav_msgs::OccupancyGrid map;
 };
 
 } // namespace obstacle_detector
